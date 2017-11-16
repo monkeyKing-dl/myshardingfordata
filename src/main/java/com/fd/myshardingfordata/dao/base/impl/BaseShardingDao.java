@@ -1718,15 +1718,21 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 
 	private void setvlcds(StringBuilder sb, Param pm, PropInfo p) {
 		if (pm.getOperators().equals(Operate.BETWEEN)) {
+			if (pm.getFirstValue() == null || pm.getValue() == null) {
+				throw new IllegalArgumentException(
+						String.format("%s BETWEEN param   value   is not  null  ! ", pm.getPname()));
+			}
 			setcName(sb, pm, p);
-
 			sb.append(pm.getOperators().getValue());
 			sb.append(KSentences.POSITION_PLACEHOLDER);
 			sb.append(KSentences.AND);
 			sb.append(KSentences.POSITION_PLACEHOLDER);
 
-		} else if (pm.getOperators().equals(Operate.IN)
-				|| pm.getOperators().equals(Operate.NOT_IN) && pm.getInValue() != null) {
+		} else if (pm.getOperators().equals(Operate.IN) || pm.getOperators().equals(Operate.NOT_IN)) {
+			if (pm.getInValue() == null || pm.getInValue().size() < 1) {
+				throw new IllegalArgumentException(
+						String.format("%s IN param list value size is not zero or null! ", pm.getPname()));
+			}
 			setcName(sb, pm, p);
 			sb.append(pm.getOperators().getValue());
 			sb.append("(");
@@ -1763,6 +1769,9 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 				if (getPmsType(pm) == String.class) {
 					sb.append(")");
 				}
+			} else {
+				throw new IllegalArgumentException(
+						String.format("%s %s  param  value  is not null ! ", clazz.getSimpleName(), pm.getPname()));
 			}
 		}
 	}
