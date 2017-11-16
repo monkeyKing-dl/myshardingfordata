@@ -1664,32 +1664,34 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 		Iterator<Param> pmsite = pms.iterator();
 		while (pmsite.hasNext()) {
 			Param pm = pmsite.next();
-			boolean isor = pm.getOrParam() != null;
-			if (isor) {
-				sb.append("(");
-			}
-			do {
-				for (PropInfo p : getPropInfos()) {
-					if (p.getPname().equals(pm.getPname())) {
-						if (pm.getCdType().equals(PmType.OG)) {
-							setogcds(sb, pm, p);
+			if (pm.getPname() != null && pm.getPname().trim().length() > 0) {
+				boolean isor = pm.getOrParam() != null;
+				if (isor) {
+					sb.append("(");
+				}
+				do {
+					for (PropInfo p : getPropInfos()) {
+						if (p.getPname().equals(pm.getPname())) {
+							if (pm.getCdType().equals(PmType.OG)) {
+								setogcds(sb, pm, p);
 
-						} else {
+							} else {
 
-							setvlcds(sb, pm, p);
+								setvlcds(sb, pm, p);
+							}
 						}
 					}
+					pm = pm.getOrParam();
+					if (pm != null) {
+						sb.append(KSentences.OR.getValue());
+					}
+				} while (pm != null);
+				if (isor) {
+					sb.append(")");
 				}
-				pm = pm.getOrParam();
-				if (pm != null) {
-					sb.append(KSentences.OR.getValue());
+				if (pmsite.hasNext()) {
+					sb.append(KSentences.AND.getValue());
 				}
-			} while (pm != null);
-			if (isor) {
-				sb.append(")");
-			}
-			if (pmsite.hasNext()) {
-				sb.append(KSentences.AND.getValue());
 			}
 		}
 	}
@@ -1797,36 +1799,34 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 	}
 
 	protected int setWhereSqlParamValue(Set<Param> pms, PreparedStatement statement, int ix) {
-
 		if (pms != null && pms.size() > 0) {
-
 			for (Param pm : pms) {
-
-				do {
-					try {
-
-						if (!pm.getCdType().equals(PmType.OG)) {
-							if (pm.getOperators().equals(Operate.BETWEEN)) {
-								statement.setObject(ix++, getParamSqlValue(pm.getFirstValue(), pm.getPname()));
-								statement.setObject(ix++, getParamSqlValue(pm.getValue(), pm.getPname()));
-							} else if (pm.getOperators().equals(Operate.IN)
-									|| pm.getOperators().equals(Operate.NOT_IN) && pm.getInValue() != null) {
-								for (Object se : pm.getInValue()) {
-									statement.setObject(ix++, getParamSqlValue(se, pm.getPname()));
-								}
-							} else {
-								if (pm.getValue() != null && !pm.getValue().toString().trim().equals("")) {
+				if (pm.getPname() != null && pm.getPname().trim().length() > 0) {
+					do {
+						try {
+							if (!pm.getCdType().equals(PmType.OG)) {
+								if (pm.getOperators().equals(Operate.BETWEEN)) {
+									statement.setObject(ix++, getParamSqlValue(pm.getFirstValue(), pm.getPname()));
 									statement.setObject(ix++, getParamSqlValue(pm.getValue(), pm.getPname()));
+								} else if (pm.getOperators().equals(Operate.IN)
+										|| pm.getOperators().equals(Operate.NOT_IN) && pm.getInValue() != null) {
+									for (Object se : pm.getInValue()) {
+										statement.setObject(ix++, getParamSqlValue(se, pm.getPname()));
+									}
+								} else {
+									if (pm.getValue() != null && !pm.getValue().toString().trim().equals("")) {
+										statement.setObject(ix++, getParamSqlValue(pm.getValue(), pm.getPname()));
+									}
 								}
 							}
+						} catch (SQLException e) {
+							e.printStackTrace();
+							throw new IllegalArgumentException(e);
 						}
-					} catch (SQLException e) {
-						e.printStackTrace();
-						throw new IllegalArgumentException(e);
-					}
-					pm = pm.getOrParam();
-				} while (pm != null);
+						pm = pm.getOrParam();
+					} while (pm != null);
 
+				}
 			}
 
 		}
