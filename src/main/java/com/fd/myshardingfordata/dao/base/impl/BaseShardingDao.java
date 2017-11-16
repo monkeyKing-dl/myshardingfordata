@@ -1891,58 +1891,60 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 			Entry<String, LinkedHashSet<PropInfo>> tbimp = ConnectionManager.getTbinfo(clazz).entrySet().iterator()
 					.next();
 			for (Param pm : pms) {
-				for (PropInfo p : tbimp.getValue()) {
-					if (p.getColumnRule() != null) {
-						if (pm.getPname().equals(p.getPname()) && pm.getOrParam() == null) {
-
-							if (pm.getOperators().equals(Operate.EQ) && pm.getValue() != null) {
-								String tableName = gettbName(tbimp, pm, p);
-								if (isContainsTable(tableName)) {
-									return new HashSet<>(Arrays.asList(tableName));
-								}
-							} else if (pm.getOperators().equals(Operate.IN) && pm.getInValue() != null
-									&& pm.getInValue().size() > 0) {
-								Set<String> tbns = new HashSet<>();
-								for (Object sid : pm.getInValue()) {
-									if (sid != null) {
-										String tableName = getTableName(
-												getTableMaxIdx(sid, p.getType(), p.getColumnRule()), tbimp.getKey());
-										if (isContainsTable(tableName)) {
-											tbns.add(tableName);
+				if (pm.getPname() != null && pm.getPname().trim().length() > 0) {
+					for (PropInfo p : tbimp.getValue()) {
+						if (p.getColumnRule() != null) {
+							if (pm.getPname().equals(p.getPname()) && pm.getOrParam() == null) {
+								if (pm.getOperators().equals(Operate.EQ) && pm.getValue() != null) {
+									String tableName = gettbName(tbimp, pm, p);
+									if (isContainsTable(tableName)) {
+										return new HashSet<>(Arrays.asList(tableName));
+									}
+								} else if (pm.getOperators().equals(Operate.IN) && pm.getInValue() != null
+										&& pm.getInValue().size() > 0) {
+									Set<String> tbns = new HashSet<>();
+									for (Object sid : pm.getInValue()) {
+										if (sid != null) {
+											String tableName = getTableName(
+													getTableMaxIdx(sid, p.getType(), p.getColumnRule()),
+													tbimp.getKey());
+											if (isContainsTable(tableName)) {
+												tbns.add(tableName);
+											}
 										}
 									}
-								}
-								if (tbns.size() > 0) {
-									return tbns;
-								}
-							} else if (p.getColumnRule().ruleType().equals(RuleType.RANGE)
-									&& pm.getOperators().equals(Operate.BETWEEN) && pm.getValue() != null
-									&& pm.getFirstValue() != null) {
-								long st = getTableMaxIdx(pm.getFirstValue(), p.getType(), p.getColumnRule());
-								long ed = getTableMaxIdx(pm.getValue(), p.getType(), p.getColumnRule());
-								Set<String> nms = gettbs(tbimp, st, ed);
-								if (nms.size() > 0) {
-									return nms;
-								}
-							} else if (p.getColumnRule().ruleType().equals(RuleType.RANGE)
-									&& pm.getOperators().equals(Operate.GE) && pm.getValue() != null) {
-
-								long st = getTableMaxIdx(pm.getValue(), p.getType(), p.getColumnRule());
-								if (st > 0) {
-									int len = getTableName(st, tbimp.getKey())
-											.split(KSentences.SHARDING_SPLT.getValue()).length;
-
-									long ed = getCurrentTables().stream().mapToLong(n -> {
-										String[] arr = n.split(KSentences.SHARDING_SPLT.getValue());
-										if (arr.length == len) {
-											return Long.valueOf(arr[arr.length - 1]);
-										}
-										return 0L;
-									}).max().getAsLong();
-
+									if (tbns.size() > 0) {
+										return tbns;
+									}
+								} else if (p.getColumnRule().ruleType().equals(RuleType.RANGE)
+										&& pm.getOperators().equals(Operate.BETWEEN) && pm.getValue() != null
+										&& pm.getFirstValue() != null) {
+									long st = getTableMaxIdx(pm.getFirstValue(), p.getType(), p.getColumnRule());
+									long ed = getTableMaxIdx(pm.getValue(), p.getType(), p.getColumnRule());
 									Set<String> nms = gettbs(tbimp, st, ed);
 									if (nms.size() > 0) {
 										return nms;
+									}
+								} else if (p.getColumnRule().ruleType().equals(RuleType.RANGE)
+										&& pm.getOperators().equals(Operate.GE) && pm.getValue() != null) {
+
+									long st = getTableMaxIdx(pm.getValue(), p.getType(), p.getColumnRule());
+									if (st > 0) {
+										int len = getTableName(st, tbimp.getKey())
+												.split(KSentences.SHARDING_SPLT.getValue()).length;
+
+										long ed = getCurrentTables().stream().mapToLong(n -> {
+											String[] arr = n.split(KSentences.SHARDING_SPLT.getValue());
+											if (arr.length == len) {
+												return Long.valueOf(arr[arr.length - 1]);
+											}
+											return 0L;
+										}).max().getAsLong();
+
+										Set<String> nms = gettbs(tbimp, st, ed);
+										if (nms.size() > 0) {
+											return nms;
+										}
 									}
 								}
 							}

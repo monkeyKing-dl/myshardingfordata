@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.fd.myshardingfordata.em.Operate;
 import com.fd.myshardingfordata.em.PmType;
@@ -170,6 +171,12 @@ public class Param {
 	}
 
 	public static Set<Param> getParams(Param... params) {
-		return new HashSet<>(Arrays.asList(params));
+		List<Param> asList = Arrays.asList(params);
+		if (asList.size() > 0) {
+			return asList.stream().filter(pm -> pm.getPname() != null && pm.getPname().trim().length() > 0)
+					.collect(Collectors.toSet());
+		} else {
+			return new HashSet<>(0);
+		}
 	}
 }
