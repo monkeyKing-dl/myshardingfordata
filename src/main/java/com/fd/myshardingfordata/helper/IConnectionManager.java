@@ -13,9 +13,10 @@ public interface IConnectionManager {
 	Connection getConnection();
 
 	/**
-	 * 开启事务
+	 * 开启事务 
+	 * @return false 已经开启
 	 */
-	void beginTransaction();
+	Boolean beginTransaction();
 
 	/**
 	 * 是否已经开启事务

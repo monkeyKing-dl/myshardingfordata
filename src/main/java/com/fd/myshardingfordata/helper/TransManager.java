@@ -3,8 +3,10 @@ package com.fd.myshardingfordata.helper;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+
 /**
  * 事物管理器
+ * 
  * @author 符冬
  *
  */
@@ -14,9 +16,11 @@ public class TransManager {
 	public Object transactional(ProceedingJoinPoint pjp) throws Throwable {
 		Object rz = null;
 		try {
-			connectionManager.beginTransaction();
+			boolean b = connectionManager.beginTransaction();
 			rz = pjp.proceed();
-			connectionManager.commitTransaction();
+			if (b) {
+				connectionManager.commitTransaction();
+			}
 		} catch (Throwable e) {
 			connectionManager.rollbackTransaction();
 			throw e;

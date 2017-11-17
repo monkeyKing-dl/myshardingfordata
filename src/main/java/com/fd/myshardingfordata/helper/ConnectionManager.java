@@ -93,15 +93,18 @@ public final class ConnectionManager implements IConnectionManager {
 	}
 
 	@Override
-	public void beginTransaction() {
+	public Boolean beginTransaction() {
 		if (!transactions.get()) {
 			try {
 				getConnection().setAutoCommit(false);
 				transactions.set(true);
+				return true;
 			} catch (Exception e) {
 				e.printStackTrace();
 				throw new IllegalStateException(e);
 			}
+		} else {
+			return false;
 		}
 	}
 
