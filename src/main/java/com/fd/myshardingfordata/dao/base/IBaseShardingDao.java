@@ -359,4 +359,36 @@ public interface IBaseShardingDao<POJO> {
 	 * @return
 	 */
 	List<Object> getVlListFromMaster(String property, Set<Param> params);
+	/**
+	 * 去重
+	 * @param property
+	 * @param params
+	 * @param isDistinct
+	 * @return
+	 */
+	List<Object> getVlList(String property, Set<Param> params, boolean isDistinct);
+	/**
+	 * 去重
+	 * @param property
+	 * @param params
+	 * @param isDistinct
+	 * @return
+	 */
+	List<Object> getVlListFromMaster(String property, Set<Param> params, boolean isDistinct);
+	/**
+	 * 去重
+	 * @param isDistinct
+	 * @param pms
+	 * @param cls
+	 * @return
+	 */
+	List<POJO> getList(boolean isDistinct, Set<Param> pms, String... cls);
+	/**
+	 * 去重
+	 * @param isDistinct
+	 * @param pms
+	 * @param cls
+	 * @return
+	 */
+	List<POJO> getListFromMater(boolean isDistinct, Set<Param> pms, String... cls);
 }

@@ -232,12 +232,22 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 
 	@Override
 	public List<POJO> getList(Set<Param> pms, String... cls) {
-		return getRztPos(true, pms, cls);
+		return getRztPos(false, true, pms, cls);
 	}
 
 	@Override
 	public List<POJO> getListFromMater(Set<Param> pms, String... cls) {
-		return getRztPos(false, pms, cls);
+		return getRztPos(false, false, pms, cls);
+	}
+
+	@Override
+	public List<POJO> getList(boolean isDistinct, Set<Param> pms, String... cls) {
+		return getRztPos(isDistinct, true, pms, cls);
+	}
+
+	@Override
+	public List<POJO> getListFromMater(boolean isDistinct, Set<Param> pms, String... cls) {
+		return getRztPos(isDistinct, false, pms, cls);
 	}
 
 	@Override
@@ -339,7 +349,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 			Iterator<String> tnite = tbns.iterator();
 			while (tnite.hasNext()) {
 				String tn = tnite.next();
-				sqlsb.append(getPreSelectSql(getGSelect(groupby, getobfp))).append(tn).append(whereSqlByParam);
+				sqlsb.append(getPreSelectSql(false, getGSelect(groupby, getobfp))).append(tn).append(whereSqlByParam);
 				if (tnite.hasNext()) {
 					sqlsb.append(KSentences.UNION_ALL.getValue());
 				}
@@ -464,7 +474,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 			/**
 			 * select groupby from
 			 */
-			String selectpre = getPreSelectSql(getGSelect(groupby, funs != null ? funs.values() : null));
+			String selectpre = getPreSelectSql(false, getGSelect(groupby, funs != null ? funs.values() : null));
 			Iterator<String> tnite = tbns.iterator();
 			while (tnite.hasNext()) {
 				String tn = tnite.next();
@@ -584,7 +594,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 			Set<PropInfo> pis = getPropInfos();
 			for (PropInfo fd : pis) {
 				if (fd.getIsPrimarykey()) {
-					return getRztPos(true, Param.getParams(new Param(fd.getPname(), ids)), strings);
+					return getRztPos(false, true, Param.getParams(new Param(fd.getPname(), ids)), strings);
 				}
 			}
 
@@ -598,7 +608,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 			Set<PropInfo> pis = getPropInfos();
 			for (PropInfo fd : pis) {
 				if (fd.getPname().equals(propertyName)) {
-					return getRztPos(true, Param.getParams(new Param(fd.getPname(), vls)), cls);
+					return getRztPos(false, true, Param.getParams(new Param(fd.getPname(), vls)), cls);
 				}
 			}
 		}
@@ -644,7 +654,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 								return rzlist.get(0);
 							}
 						} else {
-							List<POJO> rzlist = getRztPos(isRead, pms, strings);
+							List<POJO> rzlist = getRztPos(false, isRead, pms, strings);
 							if (rzlist.size() == 1) {
 								return rzlist.get(0);
 							}
@@ -705,7 +715,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 							return rzlist.get(0);
 						}
 					} else {
-						List<POJO> rzlist = getRztPos(isRead, pms, cls);
+						List<POJO> rzlist = getRztPos(false, isRead, pms, cls);
 						if (rzlist.size() == 1) {
 							return rzlist.get(0);
 						}
@@ -725,7 +735,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 
 	@Override
 	public POJO get(Set<Param> pms, String... cls) {
-		List<POJO> rzlist = getRztPos(true, pms, cls);
+		List<POJO> rzlist = getRztPos(false, true, pms, cls);
 		if (rzlist.size() == 1) {
 			return rzlist.get(0);
 		}
@@ -1011,22 +1021,32 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 
 	@Override
 	public List<Object> getVlList(String property, Set<Param> params) {
-		return getRztPos(property, params, true);
+		return getRztPos(property, params, true, false);
 	}
 
 	@Override
 	public List<Object> getVlListFromMaster(String property, Set<Param> params) {
-		return getRztPos(property, params, false);
+		return getRztPos(property, params, false, false);
+	}
+
+	@Override
+	public List<Object> getVlList(String property, Set<Param> params, boolean isDistinct) {
+		return getRztPos(property, params, true, isDistinct);
+	}
+
+	@Override
+	public List<Object> getVlListFromMaster(String property, Set<Param> params, boolean isDistinct) {
+		return getRztPos(property, params, false, isDistinct);
 	}
 
 	// 单个字段值列表
-	private List<Object> getRztPos(String property, Set<Param> params, boolean isRead) {
+	private List<Object> getRztPos(String property, Set<Param> params, boolean isRead, boolean isDistinct) {
 
 		if (getCurrentTables().size() < 1) {
 			return new ArrayList<>(0);
 		}
 		try {
-			String selectpre = getPreSelectSql(property);
+			String selectpre = getPreSelectSql(isDistinct, property);
 			String whereSqlByParam = getWhereSqlByParam(params);
 			Set<String> tbns = getTableNamesByParams(params);
 			if (tbns.size() == 1) {
@@ -1045,12 +1065,12 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 	}
 
 	/// 实体对象列表
-	private List<POJO> getRztPos(boolean isRead, Set<Param> params, String... strings) {
+	private List<POJO> getRztPos(boolean isDistinct, boolean isRead, Set<Param> params, String... strings) {
 		if (getCurrentTables().size() < 1) {
 			return new ArrayList<>(0);
 		}
 		try {
-			String selectpre = getPreSelectSql(strings);
+			String selectpre = getPreSelectSql(isDistinct, strings);
 			String whereSqlByParam = getWhereSqlByParam(params);
 			Set<String> tbns = getTableNamesByParams(params);
 			if (tbns.size() == 1) {
@@ -1219,7 +1239,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 			return getListFromNotSorted(isRead, curPage, pageSize, params, strings).getDataList();
 		} else {
 			try {
-				String selectpre = getPreSelectSql(strings);
+				String selectpre = getPreSelectSql(false, strings);
 				String whereSqlByParam = getWhereSqlByParam(params);
 				if (tbns.size() == 1) {
 					String sql = getSingleTableSelectPagingSql(
@@ -1296,7 +1316,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 			log.info("begin........................................");
 		}
 		try {
-			String selectpre = getPreSelectSql(strings);
+			String selectpre = getPreSelectSql(false, strings);
 			String whereSqlByParam = getWhereSqlByParam(params);
 			List<QueryVo<PreparedStatement>> pss = new ArrayList<>();
 			List<QueryVo<Long>> qvs = getCountPerTable(isRead, params);
@@ -2024,15 +2044,17 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 	}
 
 	private StringBuilder getSelectSql(String tableName, String... strings) {
-		StringBuilder sb = new StringBuilder(getPreSelectSql(strings));
+		StringBuilder sb = new StringBuilder(getPreSelectSql(false, strings));
 		sb.append(tableName);
-
 		return sb;
 	}
 
-	private String getPreSelectSql(String... strings) {
+	private String getPreSelectSql(boolean isDistinct, String... strings) {
 		StringBuilder sb = new StringBuilder(KSentences.SELECT.getValue());
 		if (strings != null && strings.length > 0) {
+			if (isDistinct) {
+				sb.append(KSentences.DISTINCT.getValue());
+			}
 			for (int i = 0; i < strings.length; i++) {
 				for (PropInfo pi : getPropInfos()) {
 					if (strings[i].equals(pi.getPname())) {
