@@ -51,6 +51,12 @@ public class PropInfo {
 		this.index = index;
 	}
 
+	public PropInfo(String cname, Integer sqlTypes) {
+		super();
+		this.cname = cname;
+		this.sqlTypes = sqlTypes;
+	}
+
 	public Boolean getAutoIncreament() {
 		return autoIncreament;
 	}

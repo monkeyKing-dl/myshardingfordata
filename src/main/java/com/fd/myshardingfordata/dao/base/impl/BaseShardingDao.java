@@ -2318,14 +2318,14 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 			} else {
 
 				ResultSet crs = connection.getMetaData().getColumns(connection.getCatalog(), null, tableName, null);
-				List<String> cnames = new ArrayList<>();
+				List<PropInfo> cnames = new ArrayList<>();
 				while (crs.next()) {
-					cnames.add(crs.getString("COLUMN_NAME"));
+					cnames.add(new PropInfo(crs.getString("COLUMN_NAME"), crs.getInt("DATA_TYPE")));
 				}
 				List<PropInfo> ncns = new ArrayList<>();
 				a: for (PropInfo pi : pps) {
-					for (String cn : cnames) {
-						if (cn.equalsIgnoreCase(pi.getCname())) {
+					for (PropInfo cn : cnames) {
+						if (cn.getCname().equalsIgnoreCase(pi.getCname())) {
 							continue a;
 						}
 					}
