@@ -265,13 +265,13 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 	}
 
 	@Override
-	public Long getCount(Set<Param> pms) {
-		return getCountPerTable(true, pms);
+	public Long getCount(Set<Param> pms, String... distincts) {
+		return getCountPerTable(true, pms, distincts);
 	}
 
 	@Override
-	public Long getCountFromMaster(Set<Param> pms) {
-		return getCountPerTable(false, pms);
+	public Long getCountFromMaster(Set<Param> pms, String... distincts) {
+		return getCountPerTable(false, pms, distincts);
 	}
 
 	private Long getQvcSum(List<QueryVo<Long>> qvs) {

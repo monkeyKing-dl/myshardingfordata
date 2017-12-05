@@ -27,7 +27,7 @@ public interface IBaseShardingDao<POJO> {
 	 * @param pms
 	 * @return
 	 */
-	Long getCount(Set<Param> pms);
+	Long getCount(Set<Param> pms, String... distincts);
 
 	/**
 	 * 保存
@@ -236,7 +236,7 @@ public interface IBaseShardingDao<POJO> {
 	 * @param pms
 	 * @return
 	 */
-	Long getCountFromMaster(Set<Param> pms);
+	Long getCountFromMaster(Set<Param> pms, String... distincts);
 
 	/**
 	 * 从主库获取数据
