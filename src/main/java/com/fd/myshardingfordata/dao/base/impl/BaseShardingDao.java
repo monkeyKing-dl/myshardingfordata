@@ -158,7 +158,8 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 			}
 			try {
 				List<Double> rzslist = new ArrayList<>();
-				List<Future<QueryVo<ResultSet>>> rzts = invokeall(true, pms, sb.toString());
+				Set<String> tbs = getTableNamesByParams(pms);
+				List<Future<QueryVo<ResultSet>>> rzts = invokeall(true, pms, sb.toString(), tbs);
 				for (Future<QueryVo<ResultSet>> f : rzts) {
 					ResultSet rs = f.get().getOv();
 					while (rs.next()) {
@@ -215,9 +216,9 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 		}
 	}
 
-	private List<Future<QueryVo<ResultSet>>> invokeall(boolean isRead, Set<Param> pms, String sqlselect)
-			throws SQLException {
-		Iterator<String> tbnsite = getTableNamesByParams(pms).iterator();
+	private List<Future<QueryVo<ResultSet>>> invokeall(boolean isRead, Set<Param> pms, String sqlselect,
+			Set<String> tbs) throws SQLException {
+		Iterator<String> tbnsite = tbs.iterator();
 		List<QueryVo<PreparedStatement>> pss = new ArrayList<>();
 		String whereSqlByParam = getWhereSqlByParam(pms);
 		while (tbnsite.hasNext()) {
@@ -1411,7 +1412,8 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 	private List<QueryVo<Long>> getCountPerTable(Boolean isRead, Set<Param> params) {
 		List<QueryVo<Long>> qvs = new ArrayList<>();
 		try {
-			List<Future<QueryVo<ResultSet>>> rzts = invokeall(isRead, params, KSentences.SELECT_COUNT.getValue());
+			Set<String> tbs = getTableNamesByParams(params);
+			List<Future<QueryVo<ResultSet>>> rzts = invokeall(isRead, params, KSentences.SELECT_COUNT.getValue(), tbs);
 			for (Future<QueryVo<ResultSet>> f : rzts) {
 				ResultSet rs = f.get().getOv();
 				if (rs.next()) {
