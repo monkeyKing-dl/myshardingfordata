@@ -794,15 +794,11 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 						List<POJO> rzlist = getSingleObj(isRead, value, tbimp, fd, fd.getColumnRule(), pms, cls);
 						if (rzlist.size() == 1) {
 							return rzlist.get(0);
-						} else {
-							System.err.println("查询对象出现重复记录，只能返回NULL！");
 						}
 					} else {
 						List<POJO> rzlist = getRztPos(false, isRead, pms, cls);
 						if (rzlist.size() == 1) {
 							return rzlist.get(0);
-						} else {
-							System.err.println("查询对象出现重复记录，只能返回NULL！");
 						}
 					}
 					break;
@@ -823,8 +819,6 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 		List<POJO> rzlist = getRztPos(false, true, pms, cls);
 		if (rzlist.size() == 1) {
 			return rzlist.get(0);
-		} else {
-			System.err.println("查询对象出现多条记录，只能返回NULL！");
 		}
 
 		return null;
