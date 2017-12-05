@@ -713,11 +713,15 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 						List<POJO> rzlist = getSingleObj(isRead, value, tbimp, fd, fd.getColumnRule(), pms, cls);
 						if (rzlist.size() == 1) {
 							return rzlist.get(0);
+						} else {
+							System.err.println("查询对象出现重复记录，只能返回NULL！");
 						}
 					} else {
 						List<POJO> rzlist = getRztPos(false, isRead, pms, cls);
 						if (rzlist.size() == 1) {
 							return rzlist.get(0);
+						} else {
+							System.err.println("查询对象出现重复记录，只能返回NULL！");
 						}
 					}
 					break;
@@ -738,6 +742,8 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 		List<POJO> rzlist = getRztPos(false, true, pms, cls);
 		if (rzlist.size() == 1) {
 			return rzlist.get(0);
+		} else {
+			System.err.println("查询对象出现多条记录，只能返回NULL！");
 		}
 
 		return null;
@@ -2280,7 +2286,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 					null);
 			while (crs.next()) {
 				for (PropInfo o : pps) {
-					if (crs.getString("COLUMN_NAME").equals(o.getCname()) && o.getSqlTypes() == null) {
+					if (crs.getString("COLUMN_NAME").equals(o.getCname())) {
 						o.setSqlTypes(crs.getInt("DATA_TYPE"));
 						break;
 					}
@@ -2320,7 +2326,9 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 				ResultSet crs = connection.getMetaData().getColumns(connection.getCatalog(), null, tableName, null);
 				List<PropInfo> cnames = new ArrayList<>();
 				while (crs.next()) {
-					cnames.add(new PropInfo(crs.getString("COLUMN_NAME"), crs.getInt("DATA_TYPE")));
+					PropInfo p = new PropInfo(crs.getString("COLUMN_NAME"), crs.getInt("DATA_TYPE"));
+					p.setLength(crs.getInt("COLUMN_SIZE"));
+					cnames.add(p);
 				}
 				List<PropInfo> ncns = new ArrayList<>();
 				a: for (PropInfo pi : pps) {
@@ -2463,6 +2471,10 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 		this.maxTableCount = maxTableCount;
 	}
 
+	/**
+	 * 表名、列名、数据类型（长度）
+	 */
+	private static final String ALTER_TABLE_MODIFY_COLUMN = "ALTER TABLE  %s   MODIFY  COLUMN  %s   %s";
 	private static final String INDEX_SUBFIX = "_idx";
 	private static final String ALTER_TABLE_S_ADD_S = " ALTER  table  %s  add  (%s)";
 	private static final String ALTER_TABLE_S_ADD_INDEX_S = "ALTER  table  %s  add  %s  index  %s(%s)";

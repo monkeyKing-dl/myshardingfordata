@@ -128,6 +128,15 @@ public enum KSentences {
 			return "  SELECT  ";
 		}
 	},
+
+	COUNT {
+		@Override
+		public String getValue() {
+			return " COUNT";
+		}
+	}
+
+	,
 	FROM {
 
 		@Override
