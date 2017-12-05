@@ -176,7 +176,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 					while (rs.next()) {
 						Date o = rs.getDate(1);
 						if (o != null) {
-							rzslist.add(o);
+							rzslist.add(new Date(o.getTime()));
 						}
 					}
 				}
@@ -451,8 +451,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 			setWhereSqlParamValue(hvcs, statement, ix);
 			ResultSet rs = statement.executeQuery();
 			if (rs.next()) {
-				Number nm = (Number) rs.getObject(1);
-				return nm.longValue();
+				return rs.getObject(1, Long.class);
 			}
 
 			return 0L;
