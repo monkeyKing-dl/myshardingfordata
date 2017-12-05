@@ -141,43 +141,101 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 		return deleteByCondition(pms);
 	}
 
+	// 判断是否为日期时间类型
+	private boolean isDate(String property) {
+		for (PropInfo p : getPropInfos()) {
+			if (p.getPname().equals(property)) {
+				if (p.getSqlTypes() == Types.DATE || p.getSqlTypes() == Types.TIME
+						|| p.getSqlTypes() == Types.TIMESTAMP) {
+					return true;
+				} else {
+					return false;
+				}
+			}
+		}
+		return false;
+	}
+
+	@Override
+	public Date getMinDate(Set<Param> pms, String property) {
+		return getDateFuncValue(pms, property, StatisticsType.MIN);
+	}
+
+	@Override
+	public Date getMaxDate(Set<Param> pms, String property) {
+		return getDateFuncValue(pms, property, StatisticsType.MAX);
+	}
+
+	private Date getDateFuncValue(Set<Param> pms, String property, StatisticsType st) {
+		try {
+			if (isDate(property)) {
+				List<Future<QueryVo<ResultSet>>> rzts = getFunctionValues(pms, property, st);
+				List<Date> rzslist = new ArrayList<>();
+				for (Future<QueryVo<ResultSet>> f : rzts) {
+					ResultSet rs = f.get().getOv();
+					while (rs.next()) {
+						Date o = rs.getDate(1);
+						if (o != null) {
+							rzslist.add(o);
+						}
+					}
+				}
+				if (rzslist.size() > 0) {
+					if (rzslist.size() == 1) {
+						return rzslist.get(0);
+					} else {
+						if (StatisticsType.MIN.equals(st)) {
+							return rzslist.parallelStream().min(Comparator.comparing(d -> d)).get();
+						} else if (StatisticsType.MAX.equals(st)) {
+							return rzslist.parallelStream().max(Comparator.comparing(d -> d)).get();
+						} else {
+							throw new IllegalArgumentException(String.format("Date类型不支持%s！", st));
+						}
+					}
+				} else {
+					return null;
+				}
+			} else {
+				throw new IllegalArgumentException("字段必须是Date类型！");
+
+			}
+		} catch (Exception e) {
+			throw new IllegalStateException(e);
+		} finally {
+			getConnectionManager().closeConnection();
+		}
+	}
+
 	@Override
 	public Double getStatisticsValue(Set<Param> pms, String property, StatisticsType functionName) {
-		double ttc = 0;
 		if (property != null && functionName != null) {
 			if (getCurrentTables().size() < 1) {
 				return 0d;
 			}
-			StringBuffer sb = new StringBuffer(KSentences.SELECT.getValue());
-			for (PropInfo p : getPropInfos()) {
-				if (p.getPname().equals(property.trim())) {
-					sb.append(functionName).append(KSentences.LEFT_BRACKETS.getValue()).append(p.getCname())
-							.append(KSentences.RIGHT_BRACKETS.getValue()).append(KSentences.FROM);
-					break;
-				}
-			}
 			try {
+				List<Future<QueryVo<ResultSet>>> rzts = getFunctionValues(pms, property, functionName);
 				List<Double> rzslist = new ArrayList<>();
-				Set<String> tbs = getTableNamesByParams(pms);
-				List<Future<QueryVo<ResultSet>>> rzts = invokeall(true, pms, sb.toString(), tbs);
 				for (Future<QueryVo<ResultSet>> f : rzts) {
 					ResultSet rs = f.get().getOv();
 					while (rs.next()) {
-						Object o = rs.getObject(1);
+						Double o = rs.getDouble(1);
 						if (o != null) {
-							rzslist.add(Double.valueOf(o.toString()));
+							rzslist.add(o);
 						}
 					}
-
 				}
 				if (rzslist.size() > 0) {
-					if (StatisticsType.MAX.equals(functionName)) {
-						return rzslist.parallelStream().max(Comparator.comparing(d -> d)).get();
-					} else if (StatisticsType.MIN.equals(functionName)) {
-						return rzslist.parallelStream().min(Comparator.comparing(d -> d)).get();
+					if (rzslist.size() == 1) {
+						rzslist.get(0);
+					} else {
+						if (StatisticsType.MAX.equals(functionName)) {
+							return rzslist.parallelStream().max(Comparator.comparing(d -> d)).get();
+						} else if (StatisticsType.MIN.equals(functionName)) {
+							return rzslist.parallelStream().min(Comparator.comparing(d -> d)).get();
 
-					} else if (StatisticsType.SUM.equals(functionName)) {
-						return rzslist.parallelStream().mapToDouble(i -> i).sum();
+						} else if (StatisticsType.SUM.equals(functionName)) {
+							return rzslist.parallelStream().mapToDouble(i -> i).sum();
+						}
 					}
 				}
 			} catch (Exception e) {
@@ -186,31 +244,43 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 				getConnectionManager().closeConnection();
 			}
 		}
-		return ttc;
+		return 0D;
+	}
+
+	private List<Future<QueryVo<ResultSet>>> getFunctionValues(Set<Param> pms, String property,
+			StatisticsType functionName) throws SQLException {
+		StringBuffer sb = new StringBuffer(KSentences.SELECT.getValue());
+		sb.append(functionName);
+		for (PropInfo p : getPropInfos()) {
+			if (p.getPname().equals(property.trim())) {
+				sb.append(KSentences.LEFT_BRACKETS.getValue()).append(p.getCname())
+						.append(KSentences.RIGHT_BRACKETS.getValue()).append(KSentences.FROM);
+				break;
+			}
+		}
+
+		Set<String> tbs = getTableNamesByParams(pms);
+		List<Future<QueryVo<ResultSet>>> rzts = invokeall(true, pms, sb.toString(), tbs);
+		return rzts;
 	}
 
 	@Override
 	public Long getCount(Set<Param> pms) {
-		return getttc(true, pms);
+		return getCountPerTable(true, pms);
 	}
 
 	@Override
 	public Long getCountFromMaster(Set<Param> pms) {
-		return getttc(false, pms);
-	}
-
-	private Long getttc(boolean isRead, Set<Param> pms) {
-		if (getCurrentTables().size() < 1) {
-			return 0L;
-		}
-		List<QueryVo<Long>> qvs = getCountPerTable(isRead, pms);
-		return getQvcSum(qvs);
-
+		return getCountPerTable(false, pms);
 	}
 
 	private Long getQvcSum(List<QueryVo<Long>> qvs) {
 		if (qvs != null && qvs.size() > 0) {
-			return qvs.stream().filter(o -> o.getOv() != null).mapToLong(QueryVo::getOv).sum();
+			if (qvs.size() > 1) {
+				return qvs.stream().filter(o -> o.getOv() != null).mapToLong(QueryVo::getOv).sum();
+			} else {
+				return qvs.get(0).getOv();
+			}
 		} else {
 			return 0L;
 		}
@@ -224,11 +294,16 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 		while (tbnsite.hasNext()) {
 			String tn = tbnsite.next();
 			String sql = sqlselect + tn + whereSqlByParam;
-			PreparedStatement statement = getStatementBySql(isRead, sql);
-			setWhereSqlParamValue(pms, statement);
+			PreparedStatement statement = getPreParedStatement(isRead, pms, sql);
 			pss.add(new QueryVo<PreparedStatement>(tn, statement));
 		}
 		return invokeQueryAll(pss);
+	}
+
+	private PreparedStatement getPreParedStatement(boolean isRead, Set<Param> pms, String sql) throws SQLException {
+		PreparedStatement statement = getStatementBySql(isRead, sql);
+		setWhereSqlParamValue(pms, statement);
+		return statement;
 	}
 
 	@Override
@@ -303,7 +378,13 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 
 	@Override
 	public Long getGroupbyCount(Set<Param> pms, String... groupby) {
-		return groupcount(pms, groupby);
+		return groupcount(true, pms, groupby);
+
+	}
+
+	@Override
+	public Long getGroupbyCountFromMaster(Set<Param> pms, String... groupby) {
+		return groupcount(false, pms, groupby);
 
 	}
 
@@ -326,7 +407,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 
 	}
 
-	private Long groupcount(Set<Param> pms, String... groupby) {
+	private Long groupcount(boolean isRead, Set<Param> pms, String... groupby) {
 		if (groupby == null || groupby.length == 0 || getCurrentTables().size() < 1) {
 			return 0L;
 		}
@@ -359,7 +440,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 			sqlsb.append(")  gdtc  ").append(KSentences.GROUPBY.getValue()).append(groupbysql(groupby))
 					.append(havingSql).append(")  ccfd ");
 			String sql = sqlsb.toString();
-			PreparedStatement statement = getStatementBySql(true, sql);
+			PreparedStatement statement = getStatementBySql(isRead, sql);
 			if (getConnectionManager().isShowSql()) {
 				log.info(sql);
 			}
@@ -1326,7 +1407,8 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 			String selectpre = getPreSelectSql(false, strings);
 			String whereSqlByParam = getWhereSqlByParam(params);
 			List<QueryVo<PreparedStatement>> pss = new ArrayList<>();
-			List<QueryVo<Long>> qvs = getCountPerTable(isRead, params);
+			Set<String> tbs = getTableNamesByParams(params);
+			List<QueryVo<Long>> qvs = getMultiTableCount(isRead, params, tbs);
 			// 开始位置
 			int start = getPageStartIndex(curPage, pageSize);
 			// 当前所有查到的最大位置
@@ -1408,33 +1490,84 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 		return sts;
 	}
 
-	/// 获取每个表的记录数
-	private List<QueryVo<Long>> getCountPerTable(Boolean isRead, Set<Param> params) {
-		List<QueryVo<Long>> qvs = new ArrayList<>();
+	private static boolean isArrayEffective(String... distincts) {
+		if (distincts != null && distincts.length > 0 && distincts[0].trim().length() > 0) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	/// 获取总记录数
+	private Long getCountPerTable(Boolean isRead, Set<Param> params, String... distincts) {
 		try {
 			Set<String> tbs = getTableNamesByParams(params);
-			List<Future<QueryVo<ResultSet>>> rzts = invokeall(isRead, params, KSentences.SELECT_COUNT.getValue(), tbs);
-			for (Future<QueryVo<ResultSet>> f : rzts) {
-				ResultSet rs = f.get().getOv();
-				if (rs.next()) {
-					long cc = rs.getLong(1);
-					if (cc > 0) {
-						qvs.add(new QueryVo<Long>(f.get().getTbn(), cc));
-					}
+			if (tbs.size() > 1) {
+				if (isArrayEffective(distincts)) {
+					return groupcount(isRead, params, distincts);
+				} else {
+					return getQvcSum(getMultiTableCount(isRead, params, tbs));
 				}
-			}
-			if (qvs.size() > 1) {
-				qvs.sort(new Comparator<QueryVo<Long>>() {
-					@Override
-					public int compare(QueryVo<Long> o1, QueryVo<Long> o2) {
-						return o2.getTbn().compareTo(o1.getTbn());
+			} else {
+				StringBuilder sb = new StringBuilder(KSentences.SELECT.getValue());
+				sb.append(KSentences.COUNT.getValue());
+				sb.append(KSentences.LEFT_BRACKETS.getValue());
+				if (isArrayEffective(distincts)) {
+					sb.append(KSentences.DISTINCT.getValue());
+					for (int i = 0; i < distincts.length; i++) {
+						String ps = distincts[i];
+						for (PropInfo p : getPropInfos()) {
+							if (p.getPname().equals(ps.trim())) {
+								sb.append(p.getCname());
+								break;
+							}
+						}
+						if (i < distincts.length - 1) {
+							sb.append(KSentences.COMMA.getValue());
+						}
 					}
-				});
+				} else {
+					sb.append("*");
+				}
+				sb.append(KSentences.RIGHT_BRACKETS.getValue()).append(KSentences.FROM.getValue())
+						.append(tbs.iterator().next());
+				sb.append(getWhereSqlByParam(params));
+				PreparedStatement statement = getPreParedStatement(isRead, params, sb.toString());
+				ResultSet rs = statement.executeQuery();
+				if (rs.next()) {
+					return rs.getLong(1);
+				} else {
+					return 0L;
+				}
 			}
 		} catch (Exception e) {
 			throw new IllegalStateException(e);
 		} finally {
 			getConnectionManager().closeConnection();
+		}
+
+	}
+
+	private List<QueryVo<Long>> getMultiTableCount(Boolean isRead, Set<Param> params, Set<String> tbs)
+			throws SQLException, InterruptedException, ExecutionException {
+		List<QueryVo<Long>> qvs = new ArrayList<>();
+		List<Future<QueryVo<ResultSet>>> rzts = invokeall(isRead, params, KSentences.SELECT_COUNT.getValue(), tbs);
+		for (Future<QueryVo<ResultSet>> f : rzts) {
+			ResultSet rs = f.get().getOv();
+			if (rs.next()) {
+				long cc = rs.getLong(1);
+				if (cc > 0) {
+					qvs.add(new QueryVo<Long>(f.get().getTbn(), cc));
+				}
+			}
+		}
+		if (qvs.size() > 1) {
+			qvs.sort(new Comparator<QueryVo<Long>>() {
+				@Override
+				public int compare(QueryVo<Long> o1, QueryVo<Long> o2) {
+					return o2.getTbn().compareTo(o1.getTbn());
+				}
+			});
 		}
 		return qvs;
 	}

@@ -1,6 +1,7 @@
 package com.fd.myshardingfordata.dao.base;
 
 import java.io.Serializable;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -359,36 +360,75 @@ public interface IBaseShardingDao<POJO> {
 	 * @return
 	 */
 	List<Object> getVlListFromMaster(String property, Set<Param> params);
+
 	/**
 	 * 去重
+	 * 
 	 * @param property
 	 * @param params
 	 * @param isDistinct
 	 * @return
 	 */
 	List<Object> getVlList(String property, Set<Param> params, boolean isDistinct);
+
 	/**
 	 * 去重
+	 * 
 	 * @param property
 	 * @param params
 	 * @param isDistinct
 	 * @return
 	 */
 	List<Object> getVlListFromMaster(String property, Set<Param> params, boolean isDistinct);
+
 	/**
 	 * 去重
+	 * 
 	 * @param isDistinct
 	 * @param pms
 	 * @param cls
 	 * @return
 	 */
 	List<POJO> getList(boolean isDistinct, Set<Param> pms, String... cls);
+
 	/**
 	 * 去重
+	 * 
 	 * @param isDistinct
 	 * @param pms
 	 * @param cls
 	 * @return
 	 */
 	List<POJO> getListFromMater(boolean isDistinct, Set<Param> pms, String... cls);
+
+	/**
+	 * 分组总记录
+	 * 
+	 * @param pms
+	 * @param groupby
+	 * @return
+	 */
+	Long getGroupbyCountFromMaster(Set<Param> pms, String... groupby);
+
+	/**
+	 * 获取最小日期时间值
+	 * 
+	 * @param pms
+	 *            条件
+	 * @param property
+	 *            需要统计的日期时间属性名称
+	 * @return
+	 */
+	Date getMinDate(Set<Param> pms, String property);
+
+	/**
+	 * 获取最大日期时间值
+	 * 
+	 * @param pms
+	 *            条件
+	 * @param property
+	 *            需要统计的日期时间属性名称
+	 * @return
+	 */
+	Date getMaxDate(Set<Param> pms, String property);
 }
