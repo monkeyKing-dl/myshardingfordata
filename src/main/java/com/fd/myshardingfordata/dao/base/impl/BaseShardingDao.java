@@ -226,7 +226,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 				}
 				if (rzslist.size() > 0) {
 					if (rzslist.size() == 1) {
-						rzslist.get(0);
+						return rzslist.get(0);
 					} else {
 						if (StatisticsType.MAX.equals(functionName)) {
 							return rzslist.parallelStream().max(Comparator.comparing(d -> d)).get();

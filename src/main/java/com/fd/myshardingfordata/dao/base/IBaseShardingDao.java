@@ -24,7 +24,7 @@ public interface IBaseShardingDao<POJO> {
 	/**
 	 * 查询总记录数
 	 * 
-	 * @param pms
+	 * @param pms 条件集合
 	 * @return
 	 */
 	Long getCount(Set<Param> pms, String... distincts);
