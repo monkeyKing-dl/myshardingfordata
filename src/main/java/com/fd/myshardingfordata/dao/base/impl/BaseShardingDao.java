@@ -2607,5 +2607,5 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 	private static final String ALTER_TABLE_S_ADD_S = " ALTER  table  %s  add  (%s)";
 	private static final String ALTER_TABLE_S_ADD_INDEX_S = "ALTER  table  %s  add  %s  index  %s(%s)";
 	private static final ForkJoinPool NEW_FIXED_THREAD_POOL = new ForkJoinPool(
-			Integer.min(Runtime.getRuntime().availableProcessors() * 30, 150));
+			Integer.min(Runtime.getRuntime().availableProcessors() * 8, 64));
 }
