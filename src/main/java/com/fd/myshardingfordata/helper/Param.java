@@ -173,7 +173,7 @@ public class Param {
 	public static Set<Param> getParams(Param... params) {
 		List<Param> asList = Arrays.asList(params);
 		if (asList.size() > 0) {
-			return asList.stream().filter(pm -> pm.getPname() != null && pm.getPname().trim().length() > 0)
+			return asList.stream().filter(pm ->pm!=null&& pm.getPname() != null && pm.getPname().trim().length() > 0)
 					.collect(Collectors.toSet());
 		} else {
 			return new HashSet<>(0);
