@@ -2463,15 +2463,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 					for (PropInfo cn : cnames) {
 						if (cn.getCname().equalsIgnoreCase(pi.getCname())) {
 							if (cn.getSqlTypes() == Types.VARCHAR && cn.getLength().intValue() < pi.getLength()) {
-								for (String t : getCurrentTables()) {
-									String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, cn.getCname(),
-											"VARCHAR(" + pi.getLength() + ")");
-									if (getConnectionManager().isShowSql()) {
-										log.info(altertablesql);
-									}
-									getConnectionManager().getConnection().prepareStatement(altertablesql)
-											.executeUpdate();
-								}
+								changeToString(pi);
 							} else if ((cn.getSqlTypes() == Types.INTEGER || cn.getSqlTypes() == Types.BIGINT)
 									&& (pi.getType() == Double.class || pi.getType() == Float.class)) {
 								for (String t : getCurrentTables()) {
@@ -2483,6 +2475,9 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 									getConnectionManager().getConnection().prepareStatement(altertablesql)
 											.executeUpdate();
 								}
+							} else if ((cn.getSqlTypes() == Types.INTEGER || cn.getSqlTypes() == Types.BIGINT)
+									&& pi.getType() == String.class && !pi.getIsLob()) {
+								changeToString(pi);
 							}
 
 							continue a;
@@ -2543,6 +2538,17 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 			throw new IllegalStateException(e);
 		} finally {
 			getConnectionManager().closeConnection();
+		}
+	}
+
+	private void changeToString(PropInfo pi) throws SQLException {
+		for (String t : getCurrentTables()) {
+			String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, pi.getCname(),
+					"VARCHAR(" + pi.getLength() + ")");
+			if (getConnectionManager().isShowSql()) {
+				log.info(altertablesql);
+			}
+			getConnectionManager().getConnection().prepareStatement(altertablesql).executeUpdate();
 		}
 	}
 
