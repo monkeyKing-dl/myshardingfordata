@@ -2478,6 +2478,22 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 							} else if ((cn.getSqlTypes() == Types.INTEGER || cn.getSqlTypes() == Types.BIGINT)
 									&& pi.getType() == String.class && !pi.getIsLob()) {
 								changeToString(pi);
+							} else if (cn.getSqlTypes() == Types.DATE&&pi.getType() == Date.class) {
+								Field fd = clazz.getDeclaredField(pi.getPname());
+								Temporal tp = fd.getAnnotation(Temporal.class);
+								if (tp != null && tp.value().equals(TemporalType.TIMESTAMP)) {
+									for (String t : getCurrentTables()) {
+										String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, cn.getCname(),
+												"DATETIME");
+										if (getConnectionManager().isShowSql()) {
+											log.info(altertablesql);
+										}
+										getConnectionManager().getConnection().prepareStatement(altertablesql)
+												.executeUpdate();
+									}
+								
+								}
+
 							}
 
 							continue a;
