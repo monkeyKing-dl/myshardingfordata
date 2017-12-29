@@ -1083,12 +1083,17 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 				if ((clm != null && clm.name().equals(zd.getCname())) || zd.getCname().equals(fd.getName())) {
 					fd.setAccessible(true);
 					if (fd.getType().isEnum()) {
-						Class<Enum> cls = (Class<Enum>) fd.getType();
-						if (fd.isAnnotationPresent(Enumerated.class)
-								&& fd.getAnnotation(Enumerated.class).value() == EnumType.STRING) {
-							statement.setObject(idx++, fd.get(pojo).toString());
+						Object emv = fd.get(pojo);
+						if (emv == null) {
+							statement.setObject(idx++, null);
 						} else {
-							statement.setObject(idx++, Enum.valueOf(cls, fd.get(pojo).toString()).ordinal());
+							Class<Enum> cls = (Class<Enum>) fd.getType();
+							if (fd.isAnnotationPresent(Enumerated.class)
+									&& fd.getAnnotation(Enumerated.class).value() == EnumType.STRING) {
+								statement.setObject(idx++, emv.toString());
+							} else {
+								statement.setObject(idx++, Enum.valueOf(cls, emv.toString()).ordinal());
+							}
 						}
 					} else {
 						statement.setObject(idx++, fd.get(pojo));
@@ -2478,20 +2483,20 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 							} else if ((cn.getSqlTypes() == Types.INTEGER || cn.getSqlTypes() == Types.BIGINT)
 									&& pi.getType() == String.class && !pi.getIsLob()) {
 								changeToString(pi);
-							} else if (cn.getSqlTypes() == Types.DATE&&pi.getType() == Date.class) {
+							} else if (cn.getSqlTypes() == Types.DATE && pi.getType() == Date.class) {
 								Field fd = clazz.getDeclaredField(pi.getPname());
 								Temporal tp = fd.getAnnotation(Temporal.class);
 								if (tp != null && tp.value().equals(TemporalType.TIMESTAMP)) {
 									for (String t : getCurrentTables()) {
-										String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, cn.getCname(),
-												"DATETIME");
+										String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t,
+												cn.getCname(), "DATETIME");
 										if (getConnectionManager().isShowSql()) {
 											log.info(altertablesql);
 										}
 										getConnectionManager().getConnection().prepareStatement(altertablesql)
 												.executeUpdate();
 									}
-								
+
 								}
 
 							}
