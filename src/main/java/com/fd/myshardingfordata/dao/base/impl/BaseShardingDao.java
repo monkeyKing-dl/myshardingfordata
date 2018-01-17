@@ -1407,6 +1407,10 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 			List<QueryVo<PreparedStatement>> pss = new ArrayList<>();
 			Set<String> tbs = getTableNamesByParams(params);
 			List<QueryVo<Long>> qvs = getMultiTableCount(isRead, params, tbs);
+			long sum = qvs.stream().mapToLong(QueryVo::getOv).sum();
+			if (sum < 1) {
+				return new PageData<>(curPage, pageSize, sum, new ArrayList<>(0));
+			}
 			// 开始位置
 			int start = getPageStartIndex(curPage, pageSize);
 			// 当前所有查到的最大位置
@@ -1446,8 +1450,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 					break;
 				}
 			}
-			return new PageData<>(curPage, pageSize, qvs.stream().mapToLong(QueryVo::getOv).sum(),
-					querylist(pss, strings));
+			return new PageData<>(curPage, pageSize, sum, querylist(pss, strings));
 		} catch (Exception e) {
 			e.printStackTrace();
 			throw new IllegalStateException(e);
@@ -2540,7 +2543,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 						try {
 							// 当前索引的名称
 							String sql = String.format(ALTER_TABLE_S_ADD_INDEX_S, t,
-									(p.getIndex().unique() ? " UNIQUE " : ""), getCurrentIndexName(p),
+									(p.getIndex().unique() ? KSentences.UNIQUE : ""), getCurrentIndexName(p),
 									getIndexColumns(p));
 							if (getConnectionManager().isShowSql()) {
 								log.info(sql);
@@ -2636,7 +2639,11 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 	}
 
 	private String getCurrentIndexName(PropInfo p) {
-		String idxName = p.getIndex().name().equals("") ? p.getCname() + INDEX_SUBFIX : p.getIndex().name();
+		String idxName = p.getIndex().name().equals("") ? String.format("%s%s",
+				p.getCname() + (p.getIndex().secondPropName() != null && p.getIndex().secondPropName().length() > 0
+						? "_" + p.getIndex().secondPropName()
+						: ""),
+				INDEX_SUBFIX) : p.getIndex().name();
 		return idxName;
 	}
 

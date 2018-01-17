@@ -134,9 +134,14 @@ public enum KSentences {
 		public String getValue() {
 			return " COUNT";
 		}
-	}
+	},
+	UNIQUE {
 
-	,
+		@Override
+		public String getValue() {
+			return "UNIQUE";
+		}
+	},
 	FROM {
 
 		@Override
