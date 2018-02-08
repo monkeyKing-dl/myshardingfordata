@@ -71,6 +71,7 @@ import com.fd.myshardingfordata.helper.SortInfo;
 import com.fd.myshardingfordata.helper.UpdateCallable;
 
 public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
+	private static final int MAX_IDLE_TABLE_COUNT = 6;
 	private static Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	@Override
@@ -932,17 +933,10 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 					synchronized (FIRST_TABLECREATE) {
 						reFreshTables();
 						if (!isExistTable(ctbname)) {
-							String dpname = getConnectionManager().getConnection().getMetaData()
-									.getDatabaseProductName();
-							if ("MySQL".equalsIgnoreCase(dpname)) {
-								String sql = KSentences.CREATE_TABLE.getValue() + ctbname + KSentences.LIKE + name;
-								getConnectionManager().getConnection().prepareStatement(sql).executeUpdate();
-								if (getConnectionManager().isShowSql()) {
-									log.info(sql);
-								}
-								getCurrentTables().add(ctbname);
+							executeCreate(name, ctbname);
+							for (int i = 1; i < MAX_IDLE_TABLE_COUNT; i++) {
+								executeCreate(name, getTableName(max + i, name));
 							}
-
 						}
 					}
 				}
@@ -951,6 +945,18 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 		}
 
 		return name;
+	}
+
+	private void executeCreate(String name, String ctbname) throws SQLException {
+		String dpname = getConnectionManager().getConnection().getMetaData().getDatabaseProductName();
+		if ("MySQL".equalsIgnoreCase(dpname)) {
+			String sql = KSentences.CREATE_TABLE.getValue() + ctbname + KSentences.LIKE + name;
+			getConnectionManager().getConnection().prepareStatement(sql).executeUpdate();
+			if (getConnectionManager().isShowSql()) {
+				log.info(sql);
+			}
+			getCurrentTables().add(ctbname);
+		}
 	}
 
 	private Field checkPrimarykey(Field[] fds, Entry<String, LinkedHashSet<PropInfo>> tbe) {
