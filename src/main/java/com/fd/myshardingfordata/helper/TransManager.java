@@ -15,8 +15,9 @@ public class TransManager {
 	@Around("@annotation(com.fd.myshardingfordata.annotation.MyTransaction)")
 	public Object transactional(ProceedingJoinPoint pjp) throws Throwable {
 		Object rz = null;
+		boolean b;
 		try {
-			boolean b = connectionManager.beginTransaction();
+			b = connectionManager.beginTransaction();
 			rz = pjp.proceed();
 			if (b) {
 				connectionManager.commitTransaction();

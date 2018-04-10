@@ -122,6 +122,7 @@ public final class ConnectionManager implements IConnectionManager {
 					connections.remove();
 					transactions.remove();
 					connection.commit();
+					connection.setAutoCommit(true);
 					connection.close();
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -168,6 +169,7 @@ public final class ConnectionManager implements IConnectionManager {
 					connections.remove();
 					transactions.remove();
 					connection.rollback();
+					connection.setAutoCommit(true);
 					connection.close();
 				} catch (Exception e) {
 					e.printStackTrace();
