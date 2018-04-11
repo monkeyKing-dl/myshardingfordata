@@ -2390,6 +2390,10 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 				e.printStackTrace();
 				throw new IllegalStateException(e);
 			}
+		} else {
+			String ermsg = "POJO属性类型并不支持" + p.getType();
+			log.error(ermsg);
+			throw new IllegalStateException(ermsg);
 		}
 
 		if (p.getIsPrimarykey()) {
