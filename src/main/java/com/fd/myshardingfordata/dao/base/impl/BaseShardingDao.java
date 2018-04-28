@@ -832,7 +832,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 			boolean istransaction = getConnectionManager().isTransactioning();
 			try {
 				if (!istransaction) {
-					getConnectionManager().beginTransaction();
+					getConnectionManager().beginTransaction(getConnectionManager().isTransReadOnly());
 				}
 				for (POJO po : pojos) {
 					i += persist(po);
@@ -893,8 +893,8 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 			}
 		}
 		sb.append(")");
-
-		PreparedStatement statement = getConnectionManager().getConnection().prepareStatement(sb.toString(),
+		String insertSql = sb.toString();
+		PreparedStatement statement = getConnectionManager().getConnection().prepareStatement(insertSql,
 				Statement.RETURN_GENERATED_KEYS);
 		setParamVal(pojo, fds, tbe.getValue(), statement);
 		int cc = statement.executeUpdate();

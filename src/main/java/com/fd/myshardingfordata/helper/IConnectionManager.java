@@ -13,10 +13,11 @@ public interface IConnectionManager {
 	Connection getConnection();
 
 	/**
-	 * 开启事务 
+	 * 开启事务
+	 * 
 	 * @return false 已经开启
 	 */
-	Boolean beginTransaction();
+	Boolean beginTransaction(boolean readOnly);
 
 	/**
 	 * 是否已经开启事务
@@ -62,5 +63,12 @@ public interface IConnectionManager {
 	 * @return
 	 */
 	boolean isShowSql();
+
+	/**
+	 * 是否只读事务
+	 * 
+	 * @return
+	 */
+	boolean isTransReadOnly();
 
 }

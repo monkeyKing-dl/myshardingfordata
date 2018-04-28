@@ -1,14 +1,15 @@
 package com.fd.myshardingfordata.helper;
 
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.security.SecureRandom;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 
 import javax.persistence.Column;
 import javax.persistence.EnumType;
@@ -20,6 +21,9 @@ import javax.persistence.Lob;
 import javax.persistence.Table;
 import javax.persistence.Transient;
 import javax.sql.DataSource;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fd.myshardingfordata.annotation.ColumnRule;
 import com.fd.myshardingfordata.annotation.MyIndex;
@@ -46,44 +50,57 @@ public final class ConnectionManager implements IConnectionManager {
 
 	@Override
 	public Connection getReadConnection() {
-		if (readDataSources != null && readDataSources.size() > 0) {
+		try {
 			Connection conn = readOnlyConnections.get();
 			if (conn == null) {
-				try {
-					readOnlyConnections.set(getReadCon());
-					initConnect(readOnlyConnections.get());
-				} catch (SQLException e) {
-					e.printStackTrace();
-					throw new IllegalStateException(e);
+				if (readDataSources != null && readDataSources.size() > 0) {
+					setReadOnlyConnection(readDataSources
+							.get(ThreadLocalRandom.current().nextInt(readDataSources.size())).getConnection());
+					return readOnlyConnections.get();
+				} else {
+					if (isTransReadOnly()) {
+						setReadOnlyConnection(dataSource.getConnection());
+						return readOnlyConnections.get();
+					} else {
+						return getWriteConnection();
+					}
 				}
-
+			} else {
+				return conn;
 			}
-			return readOnlyConnections.get();
-		} else {
-			return getWriteConnection();
+		} catch (SQLException e) {
+			e.printStackTrace();
+			throw new IllegalStateException(e);
 		}
-
 	}
 
-	private Connection getReadCon() throws SQLException {
-		return readDataSources.get(new SecureRandom().nextInt(readDataSources.size())).getConnection();
+	private void setReadOnlyConnection(Connection conn) {
+		try {
+			log.debug("slave connection open  {}", Thread.currentThread().getName());
+			readOnlyConnections.set(conn);
+			initConnect(readOnlyConnections.get());
+		} catch (SQLException e) {
+			e.printStackTrace();
+			throw new IllegalStateException(e);
+		}
 	}
 
 	@Override
 	public Connection getWriteConnection() {
-		Connection conn = connections.get();
-		if (conn == null) {
-			try {
+		try {
+			Connection conn = connections.get();
+			if (conn == null) {
+				log.debug("master connection open  {}", Thread.currentThread().getName());
 				connections.set(dataSource.getConnection());
 				initConnect(connections.get());
-			} catch (SQLException e) {
-				e.printStackTrace();
-				throw new IllegalStateException(e);
+				return connections.get();
+			} else {
+				return conn;
 			}
-
+		} catch (SQLException e) {
+			e.printStackTrace();
+			throw new IllegalStateException(e);
 		}
-
-		return connections.get();
 	}
 
 	private void initConnect(Connection conn) throws SQLException {
@@ -93,11 +110,17 @@ public final class ConnectionManager implements IConnectionManager {
 	}
 
 	@Override
-	public Boolean beginTransaction() {
-		if (!transactions.get()) {
+	public Boolean beginTransaction(boolean readOnly) {
+		if (!isTransactioning()) {
 			try {
-				getConnection().setAutoCommit(false);
-				transactions.set(true);
+				getWriteConnection().setAutoCommit(false);
+				TransactionLocal transactionLocal = transactions.get();
+				if (transactionLocal == null) {
+					transactions.set(new TransactionLocal(true, readOnly));
+				} else {
+					transactionLocal.setBegin(true);
+					transactionLocal.setReadOnly(readOnly);
+				}
 				return true;
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -109,16 +132,30 @@ public final class ConnectionManager implements IConnectionManager {
 	}
 
 	@Override
+	public boolean isTransReadOnly() {
+		TransactionLocal transactionLocal = transactions.get();
+		return transactionLocal != null && transactionLocal.getReadOnly();
+	}
+
+	/**
+	 * 是否已经开启了事务
+	 * 
+	 * @return
+	 */
+	@Override
 	public boolean isTransactioning() {
-		return transactions.get();
+		TransactionLocal transactionLocal = transactions.get();
+		return transactionLocal != null && transactionLocal.getBegin();
+
 	}
 
 	@Override
 	public void commitTransaction() {
 		Connection connection = connections.get();
 		if (connection != null) {
-			if (transactions.get()) {
+			if (isTransactioning()) {
 				try {
+					log.debug("master connection close  {}", Thread.currentThread().getName());
 					connections.remove();
 					transactions.remove();
 					connection.commit();
@@ -137,35 +174,39 @@ public final class ConnectionManager implements IConnectionManager {
 	@Override
 	public void closeConnection() {
 		Connection connection = connections.get();
-		if (connection != null && !transactions.get()) {
+		if (connection != null && !isTransactioning()) {
 			try {
+				log.debug("master connection close  {}", Thread.currentThread().getName());
 				connections.remove();
 				connection.close();
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
 		}
+		closeReadconnection();
 
-		if (readDataSources != null && readDataSources.size() > 0) {
-			connection = readOnlyConnections.get();
-			if (connection != null) {
-				try {
-					readOnlyConnections.remove();
-					connection.close();
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
+	}
+
+	private void closeReadconnection() {
+		Connection connection = readOnlyConnections.get();
+		if (connection != null) {
+			try {
+				log.debug("slave connection close  {}", Thread.currentThread().getName());
+				readOnlyConnections.remove();
+				connection.close();
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
 		}
-
 	}
 
 	@Override
 	public void rollbackTransaction() {
 		Connection connection = connections.get();
 		if (connection != null) {
-			if (transactions.get()) {
+			if (isTransactioning()) {
 				try {
+					log.debug("master connection close  {}", Thread.currentThread().getName());
 					connections.remove();
 					transactions.remove();
 					connection.rollback();
@@ -200,15 +241,21 @@ public final class ConnectionManager implements IConnectionManager {
 		this.dataSource = dataSource;
 	}
 
-	private static ThreadLocal<Boolean> transactions = new ThreadLocal<Boolean>() {
+	private static ThreadLocal<TransactionLocal> transactions = new ThreadLocal<TransactionLocal>() {
 
 		@Override
-		protected Boolean initialValue() {
-			return false;
+		protected TransactionLocal initialValue() {
+			return new TransactionLocal(false, false);
 		}
 
 	};
+	/**
+	 * 主库
+	 */
 	private static ThreadLocal<Connection> connections = new ThreadLocal<Connection>();
+	/**
+	 * 读库
+	 */
 	private static ThreadLocal<Connection> readOnlyConnections = new ThreadLocal<Connection>();
 
 	/**
@@ -319,4 +366,5 @@ public final class ConnectionManager implements IConnectionManager {
 	 */
 	private volatile static ConcurrentHashMap<Class<?>, ConcurrentHashMap<String, LinkedHashSet<PropInfo>>> ENTITY_CACHED = new ConcurrentHashMap<Class<?>, ConcurrentHashMap<String, LinkedHashSet<PropInfo>>>();
 
+	private static Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 }
