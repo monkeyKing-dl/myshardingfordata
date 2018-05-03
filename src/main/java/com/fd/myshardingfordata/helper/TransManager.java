@@ -22,27 +22,45 @@ import com.fd.myshardingfordata.annotation.MyTransaction;
 public class TransManager {
 	@Around("@annotation(com.fd.myshardingfordata.annotation.MyTransaction)")
 	public Object transactional(ProceedingJoinPoint pjp) throws Throwable {
-		log.debug("begin transaction  {}",Thread.currentThread().getName());
-		Object rz = null;
-		boolean b;
+		log.debug("begin transaction  {}", Thread.currentThread().getName());
 		try {
-			MethodSignature signature = (MethodSignature) pjp.getSignature();
-			Method method = signature.getMethod();
-			MyTransaction myAnnotation = method.getAnnotation(MyTransaction.class);
-
-			b = connectionManager.beginTransaction(myAnnotation.readOnly());
-			rz = pjp.proceed();
+			boolean b = connectionManager.beginTransaction(getReadOnly(pjp));
+			Object rz = pjp.proceed();
 			if (b) {
-				log.debug("commit transaction  {}",Thread.currentThread().getName());
+				log.debug("commit transaction  {}", Thread.currentThread().getName());
 				connectionManager.commitTransaction();
 			}
+			return rz;
 		} catch (Throwable e) {
-			log.debug("rollback transaction  {}",Thread.currentThread().getName());
+			log.debug("rollback transaction  {}", Thread.currentThread().getName());
 			connectionManager.rollbackTransaction();
 			throw e;
 		}
-		log.debug("end transaction  {}",Thread.currentThread().getName());
-		return rz;
+
+	}
+
+	private boolean getReadOnly(ProceedingJoinPoint pjp) throws NoSuchMethodException {
+		boolean readOnly = false;
+		MethodSignature signature = (MethodSignature) pjp.getSignature();
+		Method method = signature.getMethod();
+		MyTransaction myAnnotation = method.getAnnotation(MyTransaction.class);
+		if (myAnnotation != null) {
+			// cglib
+			readOnly = myAnnotation.readOnly();
+			log.debug("proxyTargetClass:{}", true);
+		} else {
+			// jdk PROXY
+			Method tgmethod = pjp.getTarget().getClass().getMethod(method.getName(), method.getParameterTypes());
+			if (tgmethod != null) {
+				myAnnotation = tgmethod.getAnnotation(MyTransaction.class);
+				readOnly = myAnnotation.readOnly();
+				log.debug("proxyTargetClass:{}", false);
+			} else {
+				log.error("target method  is null ");
+			}
+		}
+		log.debug("readOnly:{}", readOnly);
+		return readOnly;
 	}
 
 	public void setConnectionManager(IConnectionManager connectionManager) {
