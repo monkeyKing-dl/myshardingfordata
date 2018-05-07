@@ -2296,7 +2296,7 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 					}
 				}
 				if (tbsps.length == 0 || (z >= '0' && z <= '9') || (z >= 0 && z <= 9)) {
-					if (dbtbn.startsWith(srctb)) {
+					if (dbtbn.toLowerCase().startsWith(srctb.toLowerCase())) {
 						if (schem != null && schem.length() > 0) {
 							dbtbn = schem + "." + dbtbn;
 						}
