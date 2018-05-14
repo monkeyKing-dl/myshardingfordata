@@ -960,17 +960,12 @@ public abstract class BaseShardingDao<POJO> implements IBaseShardingDao<POJO> {
 	}
 
 	private Field checkPrimarykey(Field[] fds, Entry<String, LinkedHashSet<PropInfo>> tbe) {
-		Field idkey = null;
 		for (Field fd : fds) {
 			if (fd.isAnnotationPresent(Id.class)) {
-				idkey = fd;
-				break;
+				return fd;
 			}
 		}
-		if (idkey == null) {
-			throw new IllegalStateException(String.format("%s没有定义主键！！", tbe.getKey()));
-		}
-		return idkey;
+		throw new IllegalStateException(String.format("%s没有定义主键！！", tbe.getKey()));
 	}
 
 	private final static Object FIRST_TABLECREATE = new Object();
